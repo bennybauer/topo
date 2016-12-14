@@ -1,0 +1,23 @@
+{
+  "name": "Topo",
+  "authors": [
+    "Benny Bauer <bennybauer@gmail.com>"
+  ],
+  "description": "A tool to create Wardley Maps",
+  "main": "index.html",
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "cytoscape": "^2.7.13",
+    "cytoscape-supportimages": "https://github.com/jhonatandarosa/cytoscape.js-supportimages.git",
+    "cytoscape-dagre": "^1.3.0",
+    "cytoscape-cxtmenu": "^2.9.2"
+  }
+}

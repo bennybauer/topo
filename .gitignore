@@ -1,0 +1,16 @@
+
+# Created by https://www.gitignore.io/api/code,bower
+
+### Code ###
+# Visual Studio Code - https://code.visualstudio.com/
+.settings/
+.vscode/
+tsconfig.json
+jsconfig.json
+
+
+### Bower ###
+bower_components
+.bower-cache
+.bower-registry
+.bower-tmp
