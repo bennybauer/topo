@@ -1,130 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>Topo</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link href="css/style.css" rel="stylesheet">
-        <script src="bower_components/cytoscape/dist/cytoscape.js"></script>
-        <script src="bower_components/cytoscape-supportimages/cytoscape-supportimages.js"></script>
-        <script src="bower_components/cytoscape-cxtmenu/cytoscape-cxtmenu.js"></script>
-        <script src="bower_components/lodash/lodash.min.js"></script>
-        <script src="bower_components/graphlib/dist/graphlib.core.min.js"></script>
-        <script src="bower_components/dagre/dist/dagre.core.min.js"></script>
-        <script src="bower_components/cytoscape-dagre/cytoscape-dagre.js"></script>
-    </head>
-    <body>
-        <div id="cy"></div>
-        <script>
-            var cy = cytoscape({
-                container: document.getElementById('cy'), // container to render in
-                zoomingEnabled: false,
 
-                style: [
-                    {
-                        selector: 'node',
-                        style: {
-                            'background-color': '#666',
-                            'label': 'data(id)'
-                        }
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'width': 3,
-                            'line-color': '#ccc',
-                            'target-arrow-color': '#ccc',
-                            'target-arrow-shape': 'triangle'
-                        }
+<head>
+  <title>Topo</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="css/style.css" rel="stylesheet">
+  <script src="bower_components/cytoscape/dist/cytoscape.js"></script>
+  <script src="bower_components/cytoscape-supportimages/cytoscape-supportimages.js"></script>
+  <script src="bower_components/cytoscape-cxtmenu/cytoscape-cxtmenu.js"></script>
+  <script src="bower_components/lodash/lodash.min.js"></script>
+  <script src="bower_components/graphlib/dist/graphlib.core.min.js"></script>
+  <script src="bower_components/dagre/dist/dagre.core.min.js"></script>
+  <script src="bower_components/cytoscape-dagre/cytoscape-dagre.js"></script>
+</head>
+
+<body>
+  <!--<input id="nameInput" placeholder="Node name" type="text" style="visibility:hidden">-->
+  <div id="header">
+      <label id="instructions"></label>
+  </div>
+  <div id="cy"></div>
+  <script>
+        var tappedTimeout, tappedBefore;    // used for double click event
+        var sourceNode;                     // used for creating a link between nodes
+        var style = window.getComputedStyle(document.getElementById('cy'));
+        var WIDTH = style.getPropertyValue('width').slice(0, -2);       // remove px suffix
+        var HEIGHT = style.getPropertyValue('height').slice(0, -2);     // remove px suffix
+        
+        var cy = cytoscape({
+            container: document.getElementById('cy'),
+            zoomingEnabled: false,
+
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#666',
+                        'label': 'data(name)'
                     }
-                ]
-            });
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 3,
+                        'line-color': '#ccc',
+                        'target-arrow-color': '#ccc',
+                        'target-arrow-shape': 'triangle'
+                    }
+                }
+            ]
+        });
 
-            function addNode(id, parent=undefined) {
+        function isAddingLink() {
+            return sourceNode;
+        }
+
+        function getNodeById(id) {
+           return cy.nodes('#' + id);
+        }
+
+        function getNodeByName(name) {
+            if (!name)
+                return null;
+
+           var originalNodes = cy.nodes('[name = "'+ name + '"]');
+            
+            if (originalNodes.length)
+                return originalNodes[0];
+
+            return null;
+        }
+
+        function getNodeId(name) {
+            var node = getNodeByName(name);
+
+            if (node)
+                return node.id();
+
+            return null;
+        }
+
+        function resetSelection() {
+            sourceNode = null;
+            setInstructions('');
+        }
+
+        function removeElement(id) {
+            cy.remove(cy.$('#' + id));
+            console.log(`deleted ${id}`);
+        }
+
+        function addNode(name=undefined, parent=undefined, x=undefined, y=undefined) {
+            // Check if already exists
+            var id = getNodeId(name);
+            var isNewNode = !id;
+
+            id = id ? id : Math.floor(Math.random() * 1000000);
+            name = name ? name : '';
+            x = (typeof x != 'undefined') ? x : Math.floor(Math.random() * WIDTH);
+            y = (typeof y != 'undefined') ? y : Math.floor(Math.random() * HEIGHT);
+
+            if (isNewNode) {
                 cy.add({
-                    data: { id: id },
+                    data: { id: id, name: name },
                     position: {
-                        x: 150,
-                        y: 100
+                        x: x,
+                        y: y
                     }
                 });
-
-                if (parent) {
-                    cy.add({
-                        data: {
-                            id: parent + '-' + id,
-                            source: parent,
-                            target: id
-                        }
-                    });
-                }
             }
 
-            // Empty map image
-            var si = cy.supportimages();
-            si.addSupportImage({
-                url: 'https://raw.githubusercontent.com/colugo/yed-wardley/master/BlankMap.png',
-                name: 'blankmap'
+            if (parent) {
+                // lookup parent id by name
+                var parentId = getNodeId(parent);
+                cy.add({
+                    data: {
+                        id: parentId + '-' + id,
+                        source: parentId,
+                        target: id
+                    }
+                });
+            }
+
+            return id;
+        }
+
+        function addEdge(source, target) {
+            cy.add({
+                data: {
+                    id: source.id() + '-' + target.id(),
+                    source: source.id(),
+                    target: target.id()
+                }
             });
+        }
+
+        function addBackgroundImage(image) {
+            var si = cy.supportimages();
+            si.addSupportImage(image);
             var backgroundImg = si.images()[0];
             si.setImageLocked(backgroundImg, true);
             si.moveImageDown(backgroundImg);
+        }
 
-            // Context menu
-            var menuOptions = {
-                menuRadius: 100, // the radius of the circular menu in pixels
-                selector: 'node', // elements matching this Cytoscape.js selector will trigger cxtmenus
-                commands: [ // an array of commands to list in the menu or a function that returns the array
-                    { // example command
-                        fillColor: 'rgba(200, 200, 200, 0.5)', // optional: custom background color for item
-                        content: 'edit', // html/text content to be displayed in the menu
-                        select: function(ele){ // a function to execute when the command is selected
-                            console.log( ele.id() ) // `ele` holds the reference to the active element
-                        },
-                        disabled: false // disables the item on true
-                    },
-                    { // example command
-                        fillColor: 'rgba(0, 200, 200, 0.5)', // optional: custom background color for item
-                        content: 'link', // html/text content to be displayed in the menu
-                        select: function(ele){ // a function to execute when the command is selected
-                            console.log( ele.id() ) // `ele` holds the reference to the active element
-                        },
-                        disabled: false // disables the item on true
-                    },
-                    { // example command
-                        fillColor: 'rgba(255, 0, 0, 0.5)', // optional: custom background color for item
-                        content: 'X', // html/text content to be displayed in the menu
-                        select: function(ele){ // a function to execute when the command is selected
-                            // console.log( ele.id() ) // `ele` holds the reference to the active element
-                        },
-                        disabled: false // disables the item on true
-                    }
-                ], // function( ele ){ return [ /*...*/ ] }, // example function for commands
-                fillColor: 'rgba(0, 0, 0, 0.75)', // the background colour of the menu
-                activeFillColor: 'rgba(92, 194, 237, 0.75)', // the colour used to indicate the selected command
-                activePadding: 20, // additional size in pixels for the active command
-                indicatorSize: 24, // the size in pixels of the pointer to the active command
-                separatorWidth: 3, // the empty spacing in pixels between successive commands
-                spotlightPadding: 4, // extra spacing in pixels between the element and the spotlight
-                minSpotlightRadius: 6, // the minimum radius in pixels of the spotlight
-                maxSpotlightRadius: 12, // the maximum radius in pixels of the spotlight
-                openMenuEvents: 'cxttapstart taphold', // cytoscape events that will open the menu (space separated)
-                itemColor: 'black', // the colour of text in the command's content
-                itemTextShadowColor: 'none', // the text shadow colour of the command's content
-                zIndex: 9999, // the z-index of the ui div
-                atMouse: false // draw menu at mouse position
-            };
+        function setInstructions(text) {
+            document.getElementById('instructions').innerHTML = text;
+        }
 
-            var cxtmenuApi = cy.cxtmenu(menuOptions);
-
-            var clicked = cy.collection();
-            cy.nodes().on('click', function(){
-                clicked = clicked.add(this);
-                console.log(clicked[0].data.id);
-                console.log(clicked.jsons());
-            });
-
-            // Elements
+        // Temp function
+        function populateMap() {
             addNode('customer');
             addNode('webapp', 'customer');
             addNode('website', 'webapp');
@@ -133,10 +158,143 @@
             addNode('code', 'website');
             addNode('compute', 'code');
             addNode('power', 'compute');
+        }
 
-            cy.layout({
-                name: 'dagre'
-            })
-        </script>
-    </body>
+        // Blank map background image
+        addBackgroundImage({
+            url: 'https://raw.githubusercontent.com/colugo/yed-wardley/master/BlankMap.png',
+            name: 'blankmap'
+        });
+
+        // events
+        cy.on('tap', (event) => {
+            // support double click
+            var tappedNow = event.cyTarget;
+            if (tappedTimeout && tappedBefore) {
+                clearTimeout(tappedTimeout);
+            }
+
+            if (tappedBefore === tappedNow) {
+                tappedNow.trigger('doubleTap');
+                tappedBefore = null;
+                return;
+            } else {
+                tappedTimeout = setTimeout(() => tappedBefore = null, 300);
+                tappedBefore = tappedNow;
+            }
+
+            // click on canvas
+            if (event.cyTarget === cy) {
+                resetSelection();
+                const name = prompt('Node name', '');
+                addNode(name, undefined, event.originalEvent.layerX, event.originalEvent.layerY);
+                
+            }
+        });
+
+        cy.on('tap', 'node', (event) => {
+            if (isAddingLink) {
+                addEdge(sourceNode, event.cyTarget);
+                resetSelection();
+            }
+        });
+
+        cy.on('doubleTap', 'node', (event) => {
+            console.log('double click');
+            var node = event.cyTarget;
+            var clickNum = node.data().clicked ? node.data().clicked + 1: 1;
+            node.data('clicked', clickNum);
+            // node.data('name', document.getElementById('nameInput').value);
+            // var nameInput = document.getElementById("nameInput");
+            // nameInput.style.visibility="visible";
+            // nameInput.focus();
+            var newName = prompt('', node.data('name'));
+            node.data('name', newName);
+        });
+
+        // Context menu
+        var nodeMenu = {
+            menuRadius: 80,
+            selector: 'node',
+            commands: [ 
+                { // edit command
+                    fillColor: 'rgba(200, 200, 200, 0.5)',
+                    content: 'edit',
+                    select: function(ele){ 
+                        console.log( ele.data() )
+                    },
+                    disabled: false
+                },
+                { // delete command
+                    fillColor: 'rgba(255, 0, 0, 0.5)',
+                    content: 'X',
+                    select: function(ele){
+                        removeElement(ele.id());
+                    },
+                    disabled: false
+                },
+                { // link command
+                    fillColor: 'rgba(128, 255, 0, 0.5)',
+                    content: 'link',
+                    select: function(ele){
+                        sourceNode = ele;
+                        setInstructions('Select node to link to');
+                    },
+                    disabled: false
+                }
+            ],
+            fillColor: 'rgba(0, 0, 0, 0.75)', // the background colour of the menu
+            activeFillColor: 'rgba(92, 194, 237, 0.75)', // the colour used to indicate the selected command
+            activePadding: 20, // additional size in pixels for the active command
+            indicatorSize: 24, // the size in pixels of the pointer to the active command
+            separatorWidth: 3, // the empty spacing in pixels between successive commands
+            spotlightPadding: 4, // extra spacing in pixels between the element and the spotlight
+            minSpotlightRadius: 6, // the minimum radius in pixels of the spotlight
+            maxSpotlightRadius: 12, // the maximum radius in pixels of the spotlight
+            openMenuEvents: 'cxttapstart taphold', // cytoscape events that will open the menu (space separated)
+            itemColor: 'black', // the colour of text in the command's content
+            itemTextShadowColor: 'none', // the text shadow colour of the command's content
+            zIndex: 9999, // the z-index of the ui div
+            atMouse: false // draw menu at mouse position
+        };
+
+        var edgeMenu = {
+            menuRadius: 50,
+            selector: 'edge',
+            commands: [ 
+                { // delete command
+                    fillColor: 'rgba(255, 0, 0, 0.5)',
+                    content: 'X',
+                    select: function(ele){
+                        removeElement(ele.id());
+                    },
+                    disabled: false
+                }
+            ],
+            fillColor: 'rgba(0, 0, 0, 0.75)', // the background colour of the menu
+            activeFillColor: 'rgba(92, 194, 237, 0.75)', // the colour used to indicate the selected command
+            activePadding: 10, // additional size in pixels for the active command
+            indicatorSize: 14, // the size in pixels of the pointer to the active command
+            separatorWidth: 3, // the empty spacing in pixels between successive commands
+            spotlightPadding: 4, // extra spacing in pixels between the element and the spotlight
+            minSpotlightRadius: 6, // the minimum radius in pixels of the spotlight
+            maxSpotlightRadius: 12, // the maximum radius in pixels of the spotlight
+            openMenuEvents: 'cxttapstart taphold', // cytoscape events that will open the menu (space separated)
+            itemColor: 'black', // the colour of text in the command's content
+            itemTextShadowColor: 'none', // the text shadow colour of the command's content
+            zIndex: 9999, // the z-index of the ui div
+            atMouse: false // draw menu at mouse position
+        };
+
+        cy.cxtmenu(nodeMenu);
+        cy.cxtmenu(edgeMenu);
+
+        // Elements
+        populateMap();
+
+        cy.layout({
+            name: 'dagre'
+        })
+    </script>
+</body>
 </html>

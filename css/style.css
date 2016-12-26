@@ -1,5 +1,12 @@
 #cy {
     width: 1500px;
-    height: 1000px;
+    height: 1100px;
     display: block;
+}
+
+#header {
+    height: 30px;
+    font-weight: bold;
+    display: block;
+    color: #222222;
 }
