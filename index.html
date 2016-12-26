@@ -16,7 +16,6 @@
 </head>
 
 <body>
-  <!--<input id="nameInput" placeholder="Node name" type="text" style="visibility:hidden">-->
   <div id="header">
       <label id="instructions"></label>
   </div>
@@ -83,6 +82,7 @@
 
         function resetSelection() {
             sourceNode = null;
+            tappedBefore = null;
             setInstructions('');
         }
 
@@ -175,8 +175,8 @@
             }
 
             if (tappedBefore === tappedNow) {
+                resetSelection();
                 tappedNow.trigger('doubleTap');
-                tappedBefore = null;
                 return;
             } else {
                 tappedTimeout = setTimeout(() => tappedBefore = null, 300);
@@ -193,14 +193,13 @@
         });
 
         cy.on('tap', 'node', (event) => {
-            if (isAddingLink) {
+            if (isAddingLink()) {
                 addEdge(sourceNode, event.cyTarget);
                 resetSelection();
             }
         });
 
         cy.on('doubleTap', 'node', (event) => {
-            console.log('double click');
             var node = event.cyTarget;
             var clickNum = node.data().clicked ? node.data().clicked + 1: 1;
             node.data('clicked', clickNum);
@@ -293,7 +292,15 @@
         populateMap();
 
         cy.layout({
-            name: 'dagre'
+            name: 'dagre',
+            padding: 30,
+            fit: true,
+            boundingBox: {
+                x1: 100, 
+                y1: 80, 
+                w: 0.7 * WIDTH, 
+                h: 0.7 * HEIGHT
+            }
         })
     </script>
 </body>
